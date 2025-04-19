@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "819620205917",
+    "project_id": "iot-app-6153d",
+    "storage_bucket": "iot-app-6153d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:819620205917:android:26e6ddb076e36b68de84b4",
+        "android_client_info": {
+          "package_name": "com.example.iot_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDa-SO6nZWufAmIAuLrlngn0JNfHo0nHX0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

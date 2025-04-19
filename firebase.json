@@ -1,0 +1,1 @@
+{"flutter":{"platforms":{"android":{"default":{"projectId":"iot-app-6153d","appId":"1:819620205917:android:26e6ddb076e36b68de84b4","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"iot-app-6153d","configurations":{"android":"1:819620205917:android:26e6ddb076e36b68de84b4","ios":"1:819620205917:ios:0233fda003721a61de84b4"}}}}}}
