@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'homepage.dart';
 import 'devices_page.dart';
 import 'fertilizer_screen.dart';
-import 'profile_page.dart'; // Import the Profile Page
+import 'about_us_screen.dart'; // Import the Profile Page
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -19,7 +19,7 @@ class _MainScreenState extends State<MainScreen> {
     HomePage(), // Home tab
     DevicesPage(), // Devices tab
     FertilizerScreen(), // Fertilizer tab
-    ProfilePage(), // Profile tab
+    AboutUsScreen(), // Profile tab
   ];
 
   @override
@@ -40,7 +40,7 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
           BottomNavigationBarItem(icon: Icon(Icons.agriculture), label: 'Fertilizer'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'About Us'),
         ],
       ),
     );

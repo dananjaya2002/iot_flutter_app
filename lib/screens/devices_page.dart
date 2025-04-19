@@ -20,6 +20,7 @@ class _DevicesPageState extends State<DevicesPage> {
     _scanStream = _ble.scanForDevices(withServices: []);
   }
 
+  /// Start scanning for Bluetooth devices
   void _startBluetoothScan() {
     setState(() {
       isScanning = true;
@@ -39,6 +40,7 @@ class _DevicesPageState extends State<DevicesPage> {
     });
   }
 
+  /// Show a dialog to add a new device
   void _showAddDeviceDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -79,6 +81,7 @@ class _DevicesPageState extends State<DevicesPage> {
     );
   }
 
+  /// Connect to a selected Bluetooth device
   Future<void> _connectToDevice(DiscoveredDevice device) async {
     try {
       _ble.connectToDevice(id: device.id).listen((connectionState) {
@@ -108,7 +111,7 @@ class _DevicesPageState extends State<DevicesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: Drawer(),
+      drawer: const Drawer(), // Add your drawer content here
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -120,21 +123,6 @@ class _DevicesPageState extends State<DevicesPage> {
             color: Colors.black,
           ),
         ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 20),
-            child: Center(
-              child: Text(
-                'Hi Sehara!',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-          )
-        ],
       ),
       backgroundColor: const Color(0xFF90D7B6),
       body: Padding(
@@ -142,6 +130,7 @@ class _DevicesPageState extends State<DevicesPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header Row
             Row(
               children: const [
                 Text(
@@ -155,6 +144,8 @@ class _DevicesPageState extends State<DevicesPage> {
               ],
             ),
             const SizedBox(height: 10),
+
+            // Connected Devices Section
             Row(
               children: const [
                 Text('Connected', style: TextStyle(fontSize: 16)),
@@ -166,6 +157,8 @@ class _DevicesPageState extends State<DevicesPage> {
             _buildDeviceCard('Tea Estate Device 1', '0h 20min', '68%', true),
             _buildDeviceCard('Tea Estate Device 2', '0h 10min', '38%', true),
             const SizedBox(height: 10),
+
+            // Disconnected Devices Section
             Row(
               children: const [
                 Text('Disconnected', style: TextStyle(fontSize: 16)),
@@ -189,6 +182,7 @@ class _DevicesPageState extends State<DevicesPage> {
     );
   }
 
+  /// Build a device card widget
   Widget _buildDeviceCard(String name, String time, String battery, bool isConnected) {
     return Card(
       color: isConnected ? const Color(0xFF1F3E2D) : const Color(0xFF2F3F35),

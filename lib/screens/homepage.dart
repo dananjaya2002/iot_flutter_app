@@ -36,6 +36,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      Navigator.of(context).pushReplacementNamed('/login'); // Redirect to login screen
+    } catch (e) {
+      print("Error logging out: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -43,7 +52,35 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF88C5A3),
-      drawer: Drawer(),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(color: Colors.teal),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'AGROW',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Hi $lastName!",
+                    style: const TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: _logout,
+            ),
+          ],
+        ),
+      ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -99,10 +136,10 @@ class _HomePageState extends State<HomePage> {
                 physics: const NeverScrollableScrollPhysics(),
                 children: isConnected
                     ? const [
-                        InfoCard(label: "Nitrogen", percentage: 80, quality: "Bad Quality", color: Colors.orange),
-                        InfoCard(label: "Potassium", percentage: 40, quality: "Critical Quality", color: Colors.red),
-                        InfoCard(label: "Phosphorus", percentage: 90, quality: "Good Quality", color: Colors.blue),
-                        InfoCard(label: "Moisture", percentage: 90, quality: "Perfect Quality", color: Colors.green),
+                        InfoCard(label: "Nitrogen", amount: 80, quality: "Bad Quality", color: Colors.orange),
+                        InfoCard(label: "Potassium", amount: 40, quality: "Critical Quality", color: Colors.red),
+                        InfoCard(label: "Phosphorus", amount: 90, quality: "Good Quality", color: Colors.blue),
+                        InfoCard(label: "Moisture", amount: 90, quality: "Perfect Quality", color: Colors.green),
                       ]
                     : const [
                         NoDataCard(label: "Nitrogen"),
@@ -154,10 +191,10 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(formattedDate, style: const TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 10),
-                      const RecordRow(label: "Nitrogen", value: "50%", quality: "Critical", color: Colors.red),
-                      const RecordRow(label: "Potassium", value: "32%", quality: "Good", color: Colors.blue),
-                      const RecordRow(label: "Phosphorus", value: "15%", quality: "Bad", color: Colors.orange),
-                      const RecordRow(label: "Moisture", value: "86%", quality: "Perfect", color: Colors.green),
+                      const RecordRow(label: "Nitrogen", value: "50 kg/ha", quality: "Critical", color: Colors.red),
+                      const RecordRow(label: "Potassium", value: "32 kg/ha", quality: "Good", color: Colors.blue),
+                      const RecordRow(label: "Phosphorus", value: "15 kg/ha", quality: "Bad", color: Colors.orange),
+                      const RecordRow(label: "Moisture", value: "86 kg/ha", quality: "Perfect", color: Colors.green),
                     ],
                   ),
                 )
@@ -178,14 +215,14 @@ class _HomePageState extends State<HomePage> {
 
 class InfoCard extends StatelessWidget {
   final String label;
-  final int percentage;
+  final int amount;
   final String quality;
   final Color color;
 
   const InfoCard({
     super.key,
     required this.label,
-    required this.percentage,
+    required this.amount,
     required this.quality,
     required this.color,
   });
@@ -202,7 +239,7 @@ class InfoCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(label, style: const TextStyle(fontSize: 16, color: Colors.white)),
-          Text("$percentage%", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text("$amount kg/ha", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
           Text(quality, style: TextStyle(color: color)),
         ],
       ),

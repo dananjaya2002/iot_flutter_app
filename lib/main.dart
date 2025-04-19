@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'auth_wrapper.dart';
-import 'services/firebase_service.dart';
+import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,8 +12,6 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  // Then upload JSON data to Firestore only one time to update data
-  await uploadJsonToFirestore();
   runApp(const MyApp());
 }
 
@@ -23,7 +23,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'IoT App',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const AuthWrapper(), // Use AuthWrapper as the initial screen
+      initialRoute: '/', // Set the initial route
+      routes: {
+        '/': (context) => const AuthWrapper(), // Default route
+        '/login': (context) => const LoginScreen(), // Login screen route
+        '/register': (context) => const RegisterScreen(), // Register screen route
+        '/main': (context) => const MainScreen(), // Main screen route
+      },
     );
   }
 }
