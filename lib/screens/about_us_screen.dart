@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'dart:async';
 
 class AboutUsScreen extends StatefulWidget {
   @override
@@ -25,16 +27,10 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.menu),
-                    onPressed: () {},
-                  ),
+                  IconButton(icon: Icon(Icons.menu), onPressed: () {}),
                   Text(
                     'AGROW',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -106,8 +102,55 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                     ),
                     SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: () {
-                        // Add form submission logic here
+                      onPressed: () async {
+                        FocusScope.of(context).unfocus();
+
+                        if (_formKey.currentState!.validate()) {
+                          try {
+                            final dbRef =
+                                FirebaseDatabase.instance
+                                    .ref('contact_submissions')
+                                    .push();
+
+                            final submissionData = {
+                              'email': _emailController.text.trim(),
+                              'subject': _subjectController.text.trim(),
+                              'description': _descriptionController.text.trim(),
+                              'timestamp': DateTime.now().toIso8601String(),
+                            };
+
+                            print("Attempting to submit data...");
+
+                            // Use a timeout to catch hanging requests
+                            await dbRef
+                                .set(submissionData)
+                                .timeout(Duration(seconds: 20));
+
+                            print("✅ Successfully submitted data");
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Submitted successfully!'),
+                              ),
+                            );
+
+                            _emailController.clear();
+                            _subjectController.clear();
+                            _descriptionController.clear();
+                          } on TimeoutException catch (_) {
+                            print("❌ Timeout while submitting data");
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: Connection timed out'),
+                              ),
+                            );
+                          } catch (e) {
+                            print("❌ Unknown error: $e");
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to submit: $e')),
+                            );
+                          }
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,

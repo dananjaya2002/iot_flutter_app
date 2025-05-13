@@ -5,6 +5,7 @@ import 'auth_wrapper.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/main_screen.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +13,10 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Set correct Realtime DB URL
+  FirebaseDatabase.instance.refFromURL(
+      "https://iot-app-6153d-default-rtdb.asia-southeast1.firebasedatabase.app/");
   runApp(const MyApp());
 }
 
