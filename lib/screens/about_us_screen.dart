@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_core/firebase_core.dart'; // Needed for Firebase.app()
 import 'dart:async';
 
 class AboutUsScreen extends StatefulWidget {
@@ -9,9 +10,22 @@ class AboutUsScreen extends StatefulWidget {
 
 class _AboutUsScreenState extends State<AboutUsScreen> {
   final _formKey = GlobalKey<FormState>();
-  TextEditingController _emailController = TextEditingController();
-  TextEditingController _subjectController = TextEditingController();
-  TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _subjectController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+
+  // Reference to Firebase database with custom region
+  late final DatabaseReference _contactRef;
+
+  @override
+  void initState() {
+    super.initState();
+    _contactRef = FirebaseDatabase.instanceFor(
+      app: Firebase.app(),
+      databaseURL:
+          'https://iot-app-6153d-default-rtdb.asia-southeast1.firebasedatabase.app',
+    ).ref('contact_submissions');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +33,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
       backgroundColor: const Color(0xFFD5F5E3),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -28,47 +42,47 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(icon: Icon(Icons.menu), onPressed: () {}),
-                  Text(
+                  const Text(
                     'AGROW',
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
 
               // About Us Section
-              Text(
+              const Text(
                 'About Us',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Container(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.black),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
+                child: const Text(
                   'Agrow, We are a NSBM group that is mainly focused on next level of agriculture with technological evolution. This is the beginning of implementation of modern tech with farms and by this product we are trying to ensure that every farmer could simply check the soil and analyze nutrients real-time with easy few steps.',
                   textAlign: TextAlign.justify,
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
 
               // Contact Us Section
-              Text(
+              const Text(
                 'Contact Us',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Center(
                 child: Image.asset(
-                  'assets/images/logo-black.png', // Replace with your logo asset
+                  'assets/images/logo-black.png',
                   width: 300,
                   height: 250,
                 ),
               ),
-              SizedBox(height: 1),
+              const SizedBox(height: 1),
               Form(
                 key: _formKey,
                 child: Column(
@@ -80,8 +94,10 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                         filled: true,
                         fillColor: Colors.grey[300],
                       ),
+                      validator: (value) =>
+                          value == null || value.isEmpty ? 'Enter email' : null,
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _subjectController,
                       decoration: InputDecoration(
@@ -89,8 +105,11 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                         filled: true,
                         fillColor: Colors.grey[300],
                       ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter subject'
+                          : null,
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _descriptionController,
                       maxLines: 5,
@@ -99,37 +118,36 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                         filled: true,
                         fillColor: Colors.grey[300],
                       ),
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter description'
+                          : null,
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () async {
                         FocusScope.of(context).unfocus();
 
                         if (_formKey.currentState!.validate()) {
                           try {
-                            final dbRef =
-                                FirebaseDatabase.instance
-                                    .ref('contact_submissions')
-                                    .push();
-
+                            final newEntry = _contactRef.push();
                             final submissionData = {
                               'email': _emailController.text.trim(),
                               'subject': _subjectController.text.trim(),
-                              'description': _descriptionController.text.trim(),
+                              'description':
+                                  _descriptionController.text.trim(),
                               'timestamp': DateTime.now().toIso8601String(),
                             };
 
                             print("Attempting to submit data...");
 
-                            // Use a timeout to catch hanging requests
-                            await dbRef
+                            await newEntry
                                 .set(submissionData)
-                                .timeout(Duration(seconds: 20));
+                                .timeout(const Duration(seconds: 20));
 
                             print("✅ Successfully submitted data");
 
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
+                              const SnackBar(
                                 content: Text('Submitted successfully!'),
                               ),
                             );
@@ -140,7 +158,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                           } on TimeoutException catch (_) {
                             print("❌ Timeout while submitting data");
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
+                              const SnackBar(
                                 content: Text('Error: Connection timed out'),
                               ),
                             );
@@ -158,7 +176,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: Text('Submit'),
+                      child: const Text('Submit'),
                     ),
                   ],
                 ),

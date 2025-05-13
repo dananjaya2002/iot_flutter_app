@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'homepage.dart';
 import 'devices_page.dart';
 import 'fertilizer_screen.dart';
-import 'about_us_screen.dart'; // Import the Profile Page
+import 'about_us_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,24 +13,47 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  String? selectedDeviceId;
+  Map<String, dynamic> fertilizerData = {};
 
-  // List of screens for each tab
-  final List<Widget> _screens = [
-    HomePage(), // Home tab
-    DevicesPage(), // Devices tab
-    FertilizerScreen(), // Fertilizer tab
-    AboutUsScreen(), // Profile tab
-  ];
+  void navigateToFertilizer(Map<String, dynamic> data) {
+    setState(() {
+      fertilizerData = data;
+      _currentIndex = 2;
+    });
+  }
+
+  void updateDeviceId(String? deviceId) {
+    if (deviceId != null) {
+      print("Device selected: $deviceId"); // Debug print
+      setState(() {
+        selectedDeviceId = deviceId;
+        _currentIndex = 0; // Navigate to Home page
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Create screens list inside build to ensure they get rebuilt with the latest selectedDeviceId
+    final List<Widget> screens = [
+      HomePage(
+        onFertilizerRecommendation: navigateToFertilizer,
+        deviceId: selectedDeviceId,
+        key: ValueKey(selectedDeviceId), // Add key to force rebuild when deviceId changes
+      ),
+      DevicesPage(onDeviceSelected: updateDeviceId),
+      FertilizerScreen(initialData: fertilizerData),
+      AboutUsScreen(),
+    ];
+
     return Scaffold(
-      body: _screens[_currentIndex], // Display the selected screen
+      body: screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
-            _currentIndex = index; // Update the selected tab
+            _currentIndex = index;
           });
         },
         type: BottomNavigationBarType.fixed,

@@ -2,7 +2,8 @@
   "project_info": {
     "project_number": "819620205917",
     "project_id": "iot-app-6153d",
-    "storage_bucket": "iot-app-6153d.firebasestorage.app"
+    "storage_bucket": "iot-app-6153d.firebasestorage.app",
+    "firebase_url": "https://iot-app-6153d-default-rtdb.asia-southeast1.firebasedatabase.app "
   },
   "client": [
     {

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FertilizerScreen extends StatefulWidget {
-  const FertilizerScreen({super.key});
+  final Map<String, dynamic> initialData;
+
+  const FertilizerScreen({super.key, this.initialData = const {}});
 
   @override
   _FertilizerScreenState createState() => _FertilizerScreenState();
@@ -13,20 +15,57 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
   final TextEditingController _phosphorusController = TextEditingController();
   final TextEditingController _potassiumController = TextEditingController();
 
-  String recommendation = "Select the plant type and Enter NPK values to get recommendations.";
-  String selectedPlant = "Unknown Plant";
-  String plantType = "vegetables"; // Default plant type
+  String recommendation =
+      "Select the plant type and Enter NPK values to get recommendations.";
+  String selectedPlant = "No Plant selected"; // Default plant name
 
   // Variables to store recommended NPK values
   String recommendedNitrogen = "N/A";
   String recommendedPhosphorus = "N/A";
   String recommendedPotassium = "N/A";
 
+  @override
+  void initState() {
+    super.initState();
+    // We'll initialize the controllers with the passed values in didChangeDependencies
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Get the arguments from the route
+    final Map<String, dynamic>? args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    // Use either route arguments or widget initial data
+    final Map<String, dynamic> data = args ?? widget.initialData;
+
+    if (data.isNotEmpty) {
+      // Set the controllers with the passed values
+      _nitrogenController.text = data['nitrogen']?.toString() ?? '';
+      _phosphorusController.text = data['phosphorus']?.toString() ?? '';
+      _potassiumController.text = data['potassium']?.toString() ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _nitrogenController.dispose();
+    _phosphorusController.dispose();
+    _potassiumController.dispose();
+    super.dispose();
+  }
+
   /// Fetch NPK values for the selected plant from Firebase
-  Future<Map<String, dynamic>?> fetchNpkValues(String plantType, String plantName) async {
+  Future<Map<String, dynamic>?> fetchNpkValues(String plantName) async {
     try {
       final firestore = FirebaseFirestore.instance;
-      final doc = await firestore.collection('fertilizer_recommendations').doc('plants').get();
+      final doc =
+          await firestore
+              .collection('fertilizer_recommendations')
+              .doc('plants')
+              .get();
 
       if (!doc.exists) {
         print("Document does not exist.");
@@ -40,21 +79,19 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
       }
 
       final List<dynamic> plants = data['plants'];
-      final plant = plants.firstWhere(
-        (p) => p['type'] == plantType && p['name'] == plantName,
+
+      // Find the plant by name without considering type
+      final Map<String, dynamic>? plant = plants.firstWhere(
+        (p) => p['name'] == plantName,
         orElse: () => null,
       );
 
       if (plant == null) {
-        print("Plant '$plantName' of type '$plantType' not found.");
+        print("Plant '$plantName' not found.");
         return null;
       }
 
-      return {
-        "N": plant['N'],
-        "P": plant['P'],
-        "K": plant['K'],
-      };
+      return {"N": plant['N'], "P": plant['P'], "K": plant['K']};
     } catch (e) {
       print('Error fetching NPK values: $e');
       return null;
@@ -63,11 +100,22 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
 
   /// Get fertilizer recommendation
   Future<void> _getRecommendation() async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    // Get values from controllers
     final int nitrogen = int.tryParse(_nitrogenController.text) ?? 0;
     final int phosphorus = int.tryParse(_phosphorusController.text) ?? 0;
     final int potassium = int.tryParse(_potassiumController.text) ?? 0;
 
-    final recommendedNpk = await fetchNpkValues(plantType, selectedPlant);
+    final recommendedNpk = await fetchNpkValues(selectedPlant);
+
+    // Close loading indicator
+    Navigator.of(context).pop();
 
     if (recommendedNpk != null) {
       setState(() {
@@ -86,28 +134,49 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
   }
 
   /// Calculate fertilizer needs based on the difference between measured and recommended values
-  String calculateFertilizerNeeds(Map<String, dynamic> recommendedNpk, int nitrogen, int phosphorus, int potassium) {
-    final int recommendedNitrogen = int.tryParse(recommendedNpk['N'].toString()) ?? 0;
-    final int recommendedPhosphorus = int.tryParse(recommendedNpk['P'].toString()) ?? 0;
-    final int recommendedPotassium = int.tryParse(recommendedNpk['K'].toString()) ?? 0;
+  String calculateFertilizerNeeds(
+    Map<String, dynamic> recommendedNpk,
+    int nitrogen,
+    int phosphorus,
+    int potassium,
+  ) {
+    final int recommendedNitrogen =
+        int.tryParse(recommendedNpk['N'].toString()) ?? 0;
+    final int recommendedPhosphorus =
+        int.tryParse(recommendedNpk['P'].toString()) ?? 0;
+    final int recommendedPotassium =
+        int.tryParse(recommendedNpk['K'].toString()) ?? 0;
 
-    final int nitrogenNeeded = (recommendedNitrogen - nitrogen).clamp(0, double.infinity).toInt();
-    final int phosphorusNeeded = (recommendedPhosphorus - phosphorus).clamp(0, double.infinity).toInt();
-    final int potassiumNeeded = (recommendedPotassium - potassium).clamp(0, double.infinity).toInt();
+    final int nitrogenNeeded =
+        (recommendedNitrogen - nitrogen).clamp(0, double.infinity).toInt();
+    final int phosphorusNeeded =
+        (recommendedPhosphorus - phosphorus).clamp(0, double.infinity).toInt();
+    final int potassiumNeeded =
+        (recommendedPotassium - potassium).clamp(0, double.infinity).toInt();
 
-    return 'Need to add Nitrogen: $nitrogenNeeded kg/ha, Phosphorus: $phosphorusNeeded kg/ha, Potassium: $potassiumNeeded kg/ha';
+    return 'Need to add:\nNitrogen: $nitrogenNeeded kg/ha\nPhosphorus: $phosphorusNeeded kg/ha\nPotassium: $potassiumNeeded kg/ha';
   }
 
-  /// Show a dialog to select a plant
+  // Show a dialog to select a plant
   Future<void> _selectPlant() async {
-    final plant = await showPlantSearchDialog(context, plantType);
+    final plant = await showPlantSearchDialog(context);
     if (plant != null) {
       setState(() {
-        selectedPlant = plant; // Update the selected plant in the state
+        selectedPlant = plant;
       });
 
-      // Fetch recommended NPK values for the selected plant
-      final recommendedNpk = await fetchNpkValues(plantType, plant);
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final recommendedNpk = await fetchNpkValues(plant);
+
+      // Close loading indicator
+      Navigator.of(context).pop();
+
       if (recommendedNpk != null) {
         setState(() {
           recommendedNitrogen = recommendedNpk['N'].toString();
@@ -119,9 +188,23 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
   }
 
   /// Show a search dialog for selecting a plant
-  Future<String?> showPlantSearchDialog(BuildContext context, String plantType) async {
+  Future<String?> showPlantSearchDialog(BuildContext context) async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
     final firestore = FirebaseFirestore.instance;
-    final doc = await firestore.collection('fertilizer_recommendations').doc('plants').get();
+    final doc =
+        await firestore
+            .collection('fertilizer_recommendations')
+            .doc('plants')
+            .get();
+
+    // Close loading indicator
+    Navigator.of(context).pop();
 
     if (!doc.exists) {
       print("Document does not exist.");
@@ -135,54 +218,82 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
     }
 
     final List<dynamic> plants = data['plants'];
-    final List<String> plantNames = plants
-        .where((p) => p['type'] == plantType)
-        .map<String>((p) => p['name'])
-        .toList();
+    final List<String> plantNames =
+        plants.map<String>((p) => p['name']).toList();
 
     if (plantNames.isEmpty) {
-      print("No plants found for type '$plantType'.");
+      print("No plants found.");
       return null;
     }
 
-    String selectedPlant = plantNames.first;
+    String? selectedPlant;
 
-    return showDialog<String>(
+    return await showDialog<String>(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Select Plant'),
-              content: DropdownButton<String>(
-                value: selectedPlant,
-                items: plantNames.map((plant) {
-                  return DropdownMenuItem(
-                    value: plant,
-                    child: Text(plant),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedPlant = value!;
-                  });
-                },
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(null),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(selectedPlant),
-                  child: const Text('Select'),
+        return AlertDialog(
+          title: const Text('Select Plant'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: plantNames.first,
+                  items:
+                      plantNames.map((plant) {
+                        return DropdownMenuItem(
+                          value: plant,
+                          child: Text(plant),
+                        );
+                      }).toList(),
+                  onChanged: (value) {
+                    selectedPlant = value;
+                  },
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: "Select a plant",
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: Navigator.of(context).pop,
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(selectedPlant);
+              },
+              child: const Text('Select'),
+            ),
+          ],
         );
       },
     );
+  }
+
+  void _resetAll() {
+    setState(() {
+      // Clear input fields
+      _nitrogenController.clear();
+      _phosphorusController.clear();
+      _potassiumController.clear();
+
+      // Reset selected plant
+      selectedPlant = "No Plant Selected";
+
+      // Reset recommended NPK
+      recommendedNitrogen = "N/A";
+      recommendedPhosphorus = "N/A";
+      recommendedPotassium = "N/A";
+
+      // Reset recommendation
+      recommendation = "Select a plant and enter NPK values.";
+    });
   }
 
   @override
@@ -198,91 +309,174 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.grass, color: Colors.blue),
-                  const SizedBox(width: 6),
-                  Text(
-                    "Plant: $selectedPlant",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+      body: SingleChildScrollView(       
+        
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Plant selection section
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.grass, color: Colors.green),
+                          const SizedBox(width: 8),
+                          const Text(
+                            "Selected Plant:",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          ElevatedButton(
+                            onPressed: _selectPlant,
+                            child: const Text("Select Plant"),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          selectedPlant,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Recommended NPK Values:",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text("Nitrogen: $recommendedNitrogen kg/ha"),
+                      Text("Phosphorus: $recommendedPhosphorus kg/ha"),
+                      Text("Potassium: $recommendedPotassium kg/ha"),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Measurements input section
+                const Text(
+                  "Enter your soil measurements:",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _nitrogenController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Measured Nitrogen (kg/ha)",
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _phosphorusController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Measured Phosphorus (kg/ha)",
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _potassiumController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Measured Potassium (kg/ha)",
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Calculate button
+                Center(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.calculate),
+                    label: const Text("Calculate Recommendation"),
+                    onPressed: _getRecommendation,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: _selectPlant,
-                    child: const Text("Select Plant"),
+                ),
+                const SizedBox(height: 16),
+                // Reset button
+                Center(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("Reset Inputs"),
+                    onPressed: _resetAll,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "Recommended NPK Values (kg/ha):",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text("Nitrogen: $recommendedNitrogen kg/ha"),
-              Text("Phosphorus: $recommendedPhosphorus kg/ha"),
-              Text("Potassium: $recommendedPotassium kg/ha"),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _nitrogenController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: "Measured Nitrogen (kg/ha)",
-                  border: OutlineInputBorder(),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _phosphorusController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: "Measured Phosphorus (kg/ha)",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _potassiumController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: "Measured Potassium (kg/ha)",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _getRecommendation,
-                child: const Text("Get Recommendation"),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  recommendation,
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 24),
+                // Recommendation section
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.teal.withOpacity(0.5),
+                      width: 2,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
+                  child: Column(
+                    children: [
+                      const Text(
+                        "Recommendation",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        recommendation,
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          ),        
       ),
     );
   }

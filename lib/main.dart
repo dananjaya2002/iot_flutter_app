@@ -5,18 +5,13 @@ import 'auth_wrapper.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/main_screen.dart';
-import 'package:firebase_database/firebase_database.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Set correct Realtime DB URL
-  FirebaseDatabase.instance.refFromURL(
-      "https://iot-app-6153d-default-rtdb.asia-southeast1.firebasedatabase.app/");
   runApp(const MyApp());
 }
 
@@ -32,8 +27,11 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const AuthWrapper(), // Default route
         '/login': (context) => const LoginScreen(), // Login screen route
-        '/register': (context) => const RegisterScreen(), // Register screen route
+        '/register':
+            (context) => const RegisterScreen(), // Register screen route
         '/main': (context) => const MainScreen(), // Main screen route
+
+        
       },
     );
   }

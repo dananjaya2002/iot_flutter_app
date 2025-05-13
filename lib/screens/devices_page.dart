@@ -1,117 +1,119 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 
 class DevicesPage extends StatefulWidget {
-  const DevicesPage({super.key});
+  final Function(String?) onDeviceSelected; // Callback for device selection
+
+  const DevicesPage({
+    super.key,
+    required this.onDeviceSelected,
+  });
 
   @override
   State<DevicesPage> createState() => _DevicesPageState();
 }
 
 class _DevicesPageState extends State<DevicesPage> {
-  final FlutterReactiveBle _ble = FlutterReactiveBle();
-  final List<DiscoveredDevice> _devicesList = [];
-  late Stream<DiscoveredDevice> _scanStream;
-  bool isScanning = false;
+  final List<Map<String, dynamic>> _connectedDevices = [];
+
+  late final DatabaseReference _databaseRef = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL:
+        'https://iot-app-6153d-default-rtdb.asia-southeast1.firebasedatabase.app',
+  ).ref('sensor_data');
+
+  late StreamSubscription _deviceListener;
 
   @override
   void initState() {
     super.initState();
-    _scanStream = _ble.scanForDevices(withServices: []);
+    _startListeningToDevices();
   }
 
-  /// Start scanning for Bluetooth devices
-  void _startBluetoothScan() {
-    setState(() {
-      isScanning = true;
-      _devicesList.clear(); // Clear the list before starting a new scan
-    });
+  void _startListeningToDevices() {
+    _deviceListener = _databaseRef.onValue.listen((event) {
+      final snapshot = event.snapshot;
+      if (snapshot.exists && snapshot.value != null) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
 
-    _scanStream.listen((device) {
-      if (!_devicesList.any((d) => d.id == device.id)) {
         setState(() {
-          _devicesList.add(device);
+          _connectedDevices.clear();
+
+          data.forEach((deviceKey, deviceData) {
+            if (deviceData is Map<dynamic, dynamic>) {
+              int latestTimestamp = 0;
+
+              deviceData.forEach((readingKey, readingValue) {
+                if (readingValue is Map<dynamic, dynamic> &&
+                    readingValue.containsKey('timestamp')) {
+                  int ts = readingValue['timestamp'] ?? 0;
+                  if (ts > latestTimestamp) {
+                    latestTimestamp = ts;
+                  }
+                }
+              });
+
+              _connectedDevices.add({
+                'id': deviceKey.toString(),
+                'latestTimestamp': latestTimestamp,
+              });
+            }
+          });
+        });
+      } else {
+        setState(() {
+          _connectedDevices.clear();
         });
       }
-    }).onDone(() {
-      setState(() {
-        isScanning = false;
-      });
+    }, onError: (error) {
+      print("Firebase error: $error");
     });
   }
 
-  /// Show a dialog to add a new device
   void _showAddDeviceDialog(BuildContext context) {
+    final TextEditingController deviceIdController = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Add New Device'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: isScanning
-                ? const Center(child: CircularProgressIndicator())
-                : _devicesList.isEmpty
-                    ? const Center(child: Text('No devices found.'))
-                    : ListView.builder(
-                        itemCount: _devicesList.length,
-                        itemBuilder: (context, index) {
-                          final device = _devicesList[index];
-                          return ListTile(
-                            title: Text(device.name.isNotEmpty ? device.name : "Unknown Device"),
-                            subtitle: Text(device.id),
-                            onTap: () {
-                              _connectToDevice(device);
-                              Navigator.of(context).pop();
-                            },
-                          );
-                        },
-                      ),
+      builder: (_) => AlertDialog(
+        title: const Text("Add New Device"),
+        content: TextField(
+          controller: deviceIdController,
+          decoration: const InputDecoration(labelText: "Device ID"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: Navigator.of(context).pop,
+            child: const Text("Cancel"),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
+          TextButton(
+            onPressed: () {
+              final id = deviceIdController.text.trim();
+              if (id.isNotEmpty) {
+                setState(() {
+                  _connectedDevices.add({'id': id, 'latestTimestamp': 0});
+                });
                 Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
+              }
+            },
+            child: const Text("Add"),
+          ),
+        ],
+      ),
     );
   }
 
-  /// Connect to a selected Bluetooth device
-  Future<void> _connectToDevice(DiscoveredDevice device) async {
-    try {
-      _ble.connectToDevice(id: device.id).listen((connectionState) {
-        if (connectionState.connectionState == DeviceConnectionState.connected) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Connected to ${device.name}')),
-            );
-          }
-        }
-      }, onError: (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to connect to ${device.name}: $error')),
-          );
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to connect to ${device.name}: $e')),
-        );
-      }
-    }
+  @override
+  void dispose() {
+    _deviceListener.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const Drawer(), // Add your drawer content here
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -123,29 +125,26 @@ class _DevicesPageState extends State<DevicesPage> {
             color: Colors.black,
           ),
         ),
+        centerTitle: true,
       ),
+      drawer: const Drawer(),
       backgroundColor: const Color(0xFF90D7B6),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row
             Row(
               children: const [
                 Text(
                   'Devices ',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 Icon(Icons.battery_charging_full),
               ],
             ),
             const SizedBox(height: 10),
 
-            // Connected Devices Section
             Row(
               children: const [
                 Text('Connected', style: TextStyle(fontSize: 16)),
@@ -154,26 +153,40 @@ class _DevicesPageState extends State<DevicesPage> {
               ],
             ),
             const SizedBox(height: 10),
-            _buildDeviceCard('Tea Estate Device 1', '0h 20min', '68%', true),
-            _buildDeviceCard('Tea Estate Device 2', '0h 10min', '38%', true),
-            const SizedBox(height: 10),
 
-            // Disconnected Devices Section
-            Row(
-              children: const [
-                Text('Disconnected', style: TextStyle(fontSize: 16)),
-                SizedBox(width: 5),
-                Icon(Icons.circle, size: 12, color: Colors.red),
-              ],
+            Expanded(
+              child: _connectedDevices.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.device_unknown, size: 48, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            "No devices connected",
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "Add a device using the button below",
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _connectedDevices.length,
+                      itemBuilder: (context, index) {
+                        final device = _connectedDevices[index];
+                        return _buildDeviceCard(device['id'], device['latestTimestamp']);
+                      },
+                    ),
             ),
-            const SizedBox(height: 10),
-            _buildDeviceCard('Tea Estate Device 3', '0h 10min', '38%', false),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _startBluetoothScan();
           _showAddDeviceDialog(context);
         },
         backgroundColor: Colors.teal,
@@ -182,35 +195,69 @@ class _DevicesPageState extends State<DevicesPage> {
     );
   }
 
-  /// Build a device card widget
-  Widget _buildDeviceCard(String name, String time, String battery, bool isConnected) {
-    return Card(
-      color: isConnected ? const Color(0xFF1F3E2D) : const Color(0xFF2F3F35),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              name,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+  Widget _buildDeviceCard(String? id, dynamic timestamp) {
+    String formattedTime = "Never";
+
+    if (timestamp is int && timestamp > 0) {
+      // The timestamp is millis() from Arduino, which is uptime in milliseconds
+      formattedTime = _formatUptime(timestamp);
+    }
+
+    return InkWell(
+      onTap: () {
+        if (id != null) {
+          // Call the callback with the selected device ID
+          widget.onDeviceSelected(id);
+        }
+      },
+      child: Card(
+        color: const Color(0xFF1F3E2D),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    id ?? 'Unknown Device',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward, color: Colors.white70),
+                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              time,
-              style: const TextStyle(color: Colors.white70),
-            ),
-            Text(
-              '$battery Battery Remaining',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                'Last Reading(since device powerd on): $formattedTime',
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  String _formatUptime(int millis) {
+    int seconds = (millis ~/ 1000) % 60;
+    int minutes = (millis ~/ 60000) % 60;
+    int hours = (millis ~/ 3600000) % 24;
+    int days = (millis ~/ 86400000);
+
+    if (days > 0) {
+      return "$days days, $hours hrs";
+    } else if (hours > 0) {
+      return "$hours hrs, $minutes mins";
+    } else if (minutes > 0) {
+      return "$minutes mins, $seconds secs";
+    } else {
+      return "$seconds secs";
+    }
   }
 }
