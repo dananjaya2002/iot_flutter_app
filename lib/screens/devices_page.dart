@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:intl/intl.dart';
 
 class DevicesPage extends StatefulWidget {
   final Function(String?) onDeviceSelected; // Callback for device selection
@@ -43,14 +44,23 @@ class _DevicesPageState extends State<DevicesPage> {
 
           data.forEach((deviceKey, deviceData) {
             if (deviceData is Map<dynamic, dynamic>) {
-              int latestTimestamp = 0;
+              String latestTimestamp = '';
 
               deviceData.forEach((readingKey, readingValue) {
                 if (readingValue is Map<dynamic, dynamic> &&
                     readingValue.containsKey('timestamp')) {
-                  int ts = readingValue['timestamp'] ?? 0;
-                  if (ts > latestTimestamp) {
-                    latestTimestamp = ts;
+                  String ts = readingValue['timestamp']?.toString() ?? '';
+                  if (ts.isNotEmpty) {
+                    // Parse the timestamp and compare dates
+                    try {
+                      DateTime parsedTime = DateTime.parse(ts);
+                      if (latestTimestamp.isEmpty || 
+                          parsedTime.compareTo(DateTime.parse(latestTimestamp)) > 0) {
+                        latestTimestamp = ts;
+                      }
+                    } catch (e) {
+                      print("Error parsing timestamp: $e");
+                    }
                   }
                 }
               });
@@ -93,7 +103,7 @@ class _DevicesPageState extends State<DevicesPage> {
               final id = deviceIdController.text.trim();
               if (id.isNotEmpty) {
                 setState(() {
-                  _connectedDevices.add({'id': id, 'latestTimestamp': 0});
+                  _connectedDevices.add({'id': id, 'latestTimestamp': ''});
                 });
                 Navigator.of(context).pop();
               }
@@ -198,9 +208,20 @@ class _DevicesPageState extends State<DevicesPage> {
   Widget _buildDeviceCard(String? id, dynamic timestamp) {
     String formattedTime = "Never";
 
-    if (timestamp is int && timestamp > 0) {
-      // The timestamp is millis() from Arduino, which is uptime in milliseconds
-      formattedTime = _formatUptime(timestamp);
+    if (timestamp is String && timestamp.isNotEmpty) {
+      try {
+        // Parse the ISO 8601 timestamp from your IoT device
+        DateTime parsedTime = DateTime.parse(timestamp);
+        
+        // Apply your timezone offset (5 hours and 29 minutes)
+        parsedTime = parsedTime.add(const Duration(hours: 5, minutes: 29));
+        
+        // Format the timestamp in a readable way
+        formattedTime = DateFormat('MMM dd, yyyy - hh:mm a').format(parsedTime);
+      } catch (e) {
+        print("Error parsing timestamp: $e");
+        formattedTime = "Invalid timestamp";
+      }
     }
 
     return InkWell(
@@ -234,7 +255,7 @@ class _DevicesPageState extends State<DevicesPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Last Reading(since device powerd on): $formattedTime',
+                'Last Reading: $formattedTime',
                 style: const TextStyle(color: Colors.white70),
               ),
             ],
@@ -242,22 +263,5 @@ class _DevicesPageState extends State<DevicesPage> {
         ),
       ),
     );
-  }
-
-  String _formatUptime(int millis) {
-    int seconds = (millis ~/ 1000) % 60;
-    int minutes = (millis ~/ 60000) % 60;
-    int hours = (millis ~/ 3600000) % 24;
-    int days = (millis ~/ 86400000);
-
-    if (days > 0) {
-      return "$days days, $hours hrs";
-    } else if (hours > 0) {
-      return "$hours hrs, $minutes mins";
-    } else if (minutes > 0) {
-      return "$minutes mins, $seconds secs";
-    } else {
-      return "$seconds secs";
-    }
   }
 }

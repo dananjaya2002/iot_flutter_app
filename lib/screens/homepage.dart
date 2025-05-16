@@ -17,9 +17,6 @@ class _HomePageState extends State<HomePage> {
   String lastName = "User";
   bool isConnected = false;
   
-
-  
-
   Map<String, dynamic> latestReading = {};
   Map<String, dynamic> previousReading = {};
   String? deviceId;
@@ -31,21 +28,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-void didChangeDependencies() {
-  super.didChangeDependencies();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-  final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-  setState(() {
-    deviceId = widget.deviceId ?? args?['deviceId'] as String?;
-  });
+    setState(() {
+      deviceId = widget.deviceId ?? args?['deviceId'] as String?;
+    });
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (mounted) {
-      _fetchSoilData();
-    }
-  });
-}
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _fetchSoilData();
+      }
+    });
+  }
 
   Future<void> _fetchLastName() async {
     try {
@@ -93,14 +90,25 @@ void didChangeDependencies() {
         });
 
         if (readings.isNotEmpty) {
+          // Sort by timestamps using ISO 8601 format
           readings.sort((a, b) {
-            final aTime = (a['timestamp'] is int)
-                ? a['timestamp']
-                : int.tryParse(a['timestamp'].toString()) ?? 0;
-            final bTime = (b['timestamp'] is int)
-                ? b['timestamp']
-                : int.tryParse(b['timestamp'].toString()) ?? 0;
-            return bTime.compareTo(aTime);
+            try {
+              final aTimeStr = a['timestamp']?.toString() ?? '';
+              final bTimeStr = b['timestamp']?.toString() ?? '';
+              
+              if (aTimeStr.isEmpty || bTimeStr.isEmpty) {
+                return 0;
+              }
+              
+              final aTime = DateTime.parse(aTimeStr);
+              final bTime = DateTime.parse(bTimeStr);
+              
+              // Sort in descending order (newest first)
+              return bTime.compareTo(aTime);
+            } catch (e) {
+              print("Error comparing timestamps: $e");
+              return 0;
+            }
           });
 
           setState(() {
@@ -143,11 +151,19 @@ void didChangeDependencies() {
 
   String formatTimestamp(dynamic timestamp) {
     try {
-      final ts = timestamp is int
-          ? timestamp * 1000
-          : int.parse(timestamp.toString()) * 1000;
-      final dateTime = DateTime.fromMillisecondsSinceEpoch(ts);
-      return DateFormat('dd/MM/yyyy hh:mm a').format(dateTime);
+      if (timestamp is String) {
+        // Parse the ISO 8601 timestamp
+        final dateTime = DateTime.parse(timestamp);
+        
+        // Apply your timezone offset (5 hours and 29 minutes)
+        final localDateTime = dateTime.add(const Duration(hours: 5, minutes: 29));
+        
+        // Format to display
+        return DateFormat('dd/MM/yyyy hh:mm a').format(localDateTime);
+      } else {
+        // Fallback to current time if timestamp is not in expected format
+        return DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now());
+      }
     } catch (e) {
       print("Error formatting date: $e");
       return DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now());
@@ -265,8 +281,12 @@ void didChangeDependencies() {
                         fontSize: 16,
                       ),
                     ),
-                    
-                    
+                    const Spacer(),
+                    if (isConnected && latestReading.containsKey('timestamp'))
+                      Text(
+                        formatTimestamp(latestReading['timestamp']),
+                        style: const TextStyle(fontSize: 12),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -328,16 +348,22 @@ void didChangeDependencies() {
                 const SizedBox(height: 24),
                 // Last Record section
                 Row(
-                  children: const [
-                    Icon(Icons.history, color: Colors.black),
-                    SizedBox(width: 6),
-                    Text(
+                  children: [
+                    const Icon(Icons.history, color: Colors.black),
+                    const SizedBox(width: 6),
+                    const Text(
                       "Last Record",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
+                    const Spacer(),
+                    if (isConnected && previousReading.containsKey('timestamp'))
+                      Text(
+                        formatTimestamp(previousReading['timestamp']),
+                        style: const TextStyle(fontSize: 12),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 10),
