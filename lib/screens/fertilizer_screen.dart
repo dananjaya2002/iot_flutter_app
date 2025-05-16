@@ -108,9 +108,9 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
     );
 
     // Get values from controllers
-    final int nitrogen = int.tryParse(_nitrogenController.text) ?? 0;
-    final int phosphorus = int.tryParse(_phosphorusController.text) ?? 0;
-    final int potassium = int.tryParse(_potassiumController.text) ?? 0;
+    final double nitrogen = double.tryParse(_nitrogenController.text) ?? 0;
+    final double phosphorus = double.tryParse(_phosphorusController.text) ?? 0;
+    final double potassium = double.tryParse(_potassiumController.text) ?? 0;
 
     final recommendedNpk = await fetchNpkValues(selectedPlant);
 
@@ -136,26 +136,26 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
   /// Calculate fertilizer needs based on the difference between measured and recommended values
   String calculateFertilizerNeeds(
     Map<String, dynamic> recommendedNpk,
-    int nitrogen,
-    int phosphorus,
-    int potassium,
+    double nitrogen,
+    double phosphorus,
+    double potassium,
   ) {
-    final int recommendedNitrogen =
-        int.tryParse(recommendedNpk['N'].toString()) ?? 0;
-    final int recommendedPhosphorus =
-        int.tryParse(recommendedNpk['P'].toString()) ?? 0;
-    final int recommendedPotassium =
-        int.tryParse(recommendedNpk['K'].toString()) ?? 0;
+    final double recommendedNitrogen =
+        double.tryParse(recommendedNpk['N'].toString()) ?? 0;
+    final double recommendedPhosphorus =
+        double.tryParse(recommendedNpk['P'].toString()) ?? 0;
+    final double recommendedPotassium =
+        double.tryParse(recommendedNpk['K'].toString()) ?? 0;
 
-    final int nitrogenNeeded =
-        (recommendedNitrogen - nitrogen).clamp(0, double.infinity).toInt();
-    final int phosphorusNeeded =
-        (recommendedPhosphorus - phosphorus).clamp(0, double.infinity).toInt();
-    final int potassiumNeeded =
-        (recommendedPotassium - potassium).clamp(0, double.infinity).toInt();
+    final double nitrogenNeeded =
+        (recommendedNitrogen - nitrogen).clamp(0, double.infinity);
+    final double phosphorusNeeded =
+        (recommendedPhosphorus - phosphorus).clamp(0, double.infinity);
+    final double potassiumNeeded =
+        (recommendedPotassium - potassium).clamp(0, double.infinity);
 
-    return 'Need to add:\nNitrogen: $nitrogenNeeded kg/ha\nPhosphorus: $phosphorusNeeded kg/ha\nPotassium: $potassiumNeeded kg/ha';
-  }
+  return 'Need to add:\nNitrogen: $nitrogenNeeded kg/ha\nPhosphorus: $phosphorusNeeded kg/ha\nPotassium: $potassiumNeeded kg/ha';
+}
 
   // Show a dialog to select a plant
   Future<void> _selectPlant() async {
